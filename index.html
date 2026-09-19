@@ -643,6 +643,16 @@ function showStandings(){
   gref().update({phase:"standings",phaseEndsAt:Date.now()+4600}).then(function(){hostBusy=false;},function(){hostBusy=false;});
 }
 function endGame(){gref().update({status:"done",phase:"final"}).catch(function(){});}
+function backToLobby(){
+  clearBotTimers();musicStop();
+  var up={};
+  players.forEach(function(p){up["players/"+p.id+"/score"]=0;up["players/"+p.id+"/streak"]=0;
+   up["players/"+p.id+"/lastPts"]=0;up["players/"+p.id+"/prevRank"]=1;up["players/"+p.id+"/skip"]=null;});
+  up["status"]="lobby";up["phase"]="lobby";up["round"]=0;up["usedList"]=null;
+  up["cur"]=null;up["rev"]=null;up["answers"]=null;
+  lsDel(secretKey());
+  gref().update(up).catch(function(){});
+}
 function playAgain(){
   if(hostBusy)return;hostBusy=true;
   var up={};
@@ -750,7 +760,8 @@ function renderStage(){
       '<button class="skipb" id="skipBtn" data-act="skipvote">Skip</button></div>'+
     '<div class="row" style="gap:8px"><div class="answered" id="hudAns"></div>'+
      '<button class="btn xs ghost" data-act="mute" id="hudSnd">\u{1F50A}</button>'+
-     '<button class="btn xs ghost" data-act="music" id="hudMsx">\u{1F3B5}</button></div></div>'+
+     '<button class="btn xs ghost" data-act="music" id="hudMsx">\u{1F3B5}</button>'+
+     '<button class="btn xs ghost" data-act="exit" title="Leave">\u2715</button></div></div>'+
    '<div class="photo" id="photo"><img class="gs" id="imgG" alt=""><img class="rv" id="imgR" alt="">'+
     '<div class="mask" id="mask"></div><div class="glare"></div><div class="badge">Correct answer</div>'+
     '<div class="lockchip">\u{1F512} Locked in</div>'+
@@ -955,8 +966,10 @@ function renderFinal(){
       return '<div class="lbr '+(i===0?"top ":"")+(p.id===me.id?"me":"")+'"><div class="rk">'+(i+1)+"</div>"+
        '<div class="nm">'+esc(p.name)+'</div><div class="sc num">'+(p.score||0).toLocaleString()+"</div></div>";}).join("")+"</div></div>"+
    '<div class="stack" id="finalBtns" style="opacity:0;transition:.6s">'+
-    (host?'<button class="btn primary block" data-act="again">Play again</button>':'<p class="center muted small">Waiting for the host\u2026</p>')+
-    '<button class="btn ghost block" data-act="leave">New game</button></div></div></div>';
+    (host?'<button class="btn primary block" data-act="again">Play again</button>'+
+          '<button class="btn block" data-act="tolobby">Back to lobby</button>'
+        :'<p class="center muted small">Waiting for the host\u2026</p>')+
+    '<button class="btn ghost block" data-act="leave">Leave room</button></div></div></div>';
   runPodium(sorted);
 }
 function runPodium(sorted){
@@ -995,7 +1008,13 @@ document.addEventListener("click",function(ev){
   else if(a==="set-time"&&isHost())gref("settings/answerTime").set(+t.dataset.v);
   else if(a==="start"){t.disabled=true;startGame();}
   else if(a==="leave")leaveGame();
+  else if(a==="exit"){
+    if(isHost()){
+      if(confirm("End this game and send everyone back to the lobby?"))backToLobby();
+    } else if(confirm("Leave this game?"))leaveGame();
+  }
   else if(a==="again")playAgain();
+  else if(a==="tolobby")backToLobby();
   else if(a==="pick")submitAnswer(+t.dataset.id);
   else if(a==="skipvote"){sfx("pick");voteSkip();}
   else if(a==="add-bot")addBot();
